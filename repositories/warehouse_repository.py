@@ -353,17 +353,25 @@ class FetchCertPassportRepository(WarehouseRepository):
 
         data = await self.db.execute(select(CertPassModels).filter(CertPassModels.warehouse_id == warehouse_id))
         temp = data.mappings().all()
-        print(f'temp.................................. is {temp}')
         return temp
 
 
 class UpdateWarehouseRepository(WarehouseRepository):
     def __init__(self, db):
         super().__init__(db)
+        self._warehouse_item = None
+
+    # Get Warehouse Item Data
+    async def get_warehouse_item(self, warehouse_id):
+
+        if self._warehouse_item is None:
+            repository = GetWarehouseById(db=self.db)
+            self._warehouse_item = await repository.get_by_id(warehouse_id)
+
+
+        return self._warehouse_item
 
     async def update(self, update_warehouse_data: UpdateWarehouseSchema, user_info):
-
-        print('----------------------------------------------------------------------------')
 
         # Check if user is admin or authorization
         if (user_info['is_admin']
@@ -371,6 +379,8 @@ class UpdateWarehouseRepository(WarehouseRepository):
                 or user_info.get('status_code') == '10001'
                 or user_info.get('status_code') == '10001'
         ):
+
+            await self.get_warehouse_item(update_warehouse_data.id)
 
             # 1 Step, Check project is True
             await self._check_project(update_warehouse_data.id, user_info.get('project'))
@@ -393,16 +403,14 @@ class UpdateWarehouseRepository(WarehouseRepository):
 
     # Checked
     async def _check_project(self, warehouse_id, user_project_id):
-        repository = GetWarehouseById(db=self.db)
-        temp = await repository.get_by_id(warehouse_id)
-        if temp.project_id != user_project_id:
-            raise HTTPException(status_code=403, detail={'message':USER_AUTHORIZATION_ERROR})
+
+        if self._warehouse_item.project_id != user_project_id:
+            raise HTTPException(status_code=403, detail={'message': USER_AUTHORIZATION_ERROR})
 
     # Checked
     async def _check_quantity_change(self, update_warehouse_data):
-        repository = GetWarehouseById(db=self.db)
-        temp = await repository.get_by_id(update_warehouse_data.id)
-        if update_warehouse_data.quantity != temp.quantity:
+
+        if update_warehouse_data.quantity != self._warehouse_item.quantity:
             return True
         else:
             return False
@@ -423,19 +431,15 @@ class UpdateWarehouseRepository(WarehouseRepository):
         ))
 
         await session.commit()
-        repository = GetWarehouseById(db=self.db)
-        temp = await repository.get_by_id(update_warehouse_data.id)
+        self._warehouse_item = None
+        await self.get_warehouse_item(update_warehouse_data.id)
         return {
-            'data': temp,
+            'data': self._warehouse_item,
             'msg': 'Successfully updated'
         }
 
     # Checking
     async def _update_warehouse_data_with_quantity(self, update_warehouse_data: UpdateWarehouseSchema, session):
-
-        # 1 - Check quantity less than or greater than leftover
-        repository = GetWarehouseById(db=self.db)
-        temp = await repository.get_by_id(update_warehouse_data.id)
 
         # 2 - Find Sum of stock data
         stock_sum = await self._find_stock_data(update_warehouse_data, session)
@@ -444,36 +448,33 @@ class UpdateWarehouseRepository(WarehouseRepository):
 
         # 3.1 - If entering data is less than leftover
         if update_warehouse_data.quantity < stock_sum:
-            print('Entering data cant be less than enter 3.1 ------------------------------------------------')
             raise HTTPException(status_code=400, detail='Entering Quantity is less than leftover this is impossible')
 
         # 3.2 - If Entering Data greater than leftover and less than quantity and greater than leftover + stock
-        elif update_warehouse_data.quantity < temp.quantity and update_warehouse_data.quantity >= stock_sum :
-            print(f'Enter 3.2------------------------------------------------ {stock_sum}')
+        elif update_warehouse_data.quantity < self._warehouse_item.quantity and update_warehouse_data.quantity >= stock_sum :
             await session.execute(update(WarehouseModel).where(WarehouseModel.id == update_warehouse_data.id).values(
                 leftover = update_warehouse_data.quantity - stock_sum,
                 quantity = update_warehouse_data.quantity, # 95
             ))
             await session.commit()
-            repository = GetWarehouseById(db=self.db)
-            temp = await repository.get_by_id(update_warehouse_data.id)
+            self._warehouse_item = None
+            await self.get_warehouse_item(update_warehouse_data.id)
             return {
-                'data': temp,
+                'data': self._warehouse_item,
                 'msg': 'Successfully updated'
             }
 
         # 3.3 - If Entering Data greater than leftover and less than quantity and less than leftover + stock
-        elif update_warehouse_data.quantity > temp.quantity:
-            print('Enter 3.3 ------------------------------------------------')
+        elif update_warehouse_data.quantity > self._warehouse_item.quantity:
             await session.execute(update(WarehouseModel).where(WarehouseModel.id == update_warehouse_data.id).values(
                 leftover=update_warehouse_data.quantity - stock_sum,
                 quantity=update_warehouse_data.quantity,
             ))
             await session.commit()
-            repository = GetWarehouseById(db=self.db)
-            temp = await repository.get_by_id(update_warehouse_data.id)
+            self._warehouse_item = None
+            await self.get_warehouse_item(update_warehouse_data.id)
             return {
-                'data': temp,
+                'data': self._warehouse_item,
                 'msg': 'Successfully updated'
             }
 
@@ -482,14 +483,10 @@ class UpdateWarehouseRepository(WarehouseRepository):
 
     # Checking
     async def _find_stock_data(self, update_warehouse_data: UpdateWarehouseSchema, session):
-        print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Start Find Stock ')
         total = 0
         data = await session.execute(select(StockModel).filter(StockModel.warehouse_id == update_warehouse_data.id))
         temp = data.mappings().all()
         for i in temp:
-            print(f'each i >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {i.get('StockModel')}')
             total += i.get('StockModel').quantity
 
-        print(f'........................ total is {total}')
-        print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> End Find Stock ')
         return total

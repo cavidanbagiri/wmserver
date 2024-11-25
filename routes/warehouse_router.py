@@ -190,11 +190,8 @@ async def update_warehouse(update_warehouse_data: UpdateWarehouseSchema, db: Asy
         repository = UpdateWarehouseRepository(db)
         try:
             data = await repository.update(update_warehouse_data, user_info)
-            print(f'$$$$$$$$$$$$$$%%%%%%%%%%%%%%%%%%     main {data}')
             return data
         except HTTPException as e:
-            print(f'coming error handle here {e}')
             return JSONResponse(status_code=e.status_code, content={'msg': str(e.detail)})
     else:
-        print(f'coming error handle or there')
         return JSONResponse(status_code=403, content={'message':USER_AUTHORIZATION_ERROR})
