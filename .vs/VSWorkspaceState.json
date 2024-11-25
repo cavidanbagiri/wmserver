@@ -1,0 +1,13 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\alembic\\versions",
+    "\\middlewares",
+    "\\models",
+    "\\repositories",
+    "\\routes",
+    "\\utils"
+  ],
+  "SelectedNode": "\\models\\user_model.py",
+  "PreviewInSolutionExplorer": false
+}
