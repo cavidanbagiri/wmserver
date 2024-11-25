@@ -181,7 +181,8 @@ async def getDataById(id: int, db: AsyncSession = Depends(get_db), user_info = D
     else:
         return JSONResponse(status_code=403, content={'message': USER_AUTHORIZATION_ERROR})
 
-# Checking
+
+# Checked
 @router.post('/update', status_code=201)
 async def update_warehouse(update_warehouse_data: UpdateWarehouseSchema, db: AsyncSession = Depends(get_db),
                            user_info = Depends(TokenVerifyMiddleware.verify_access_token)):
