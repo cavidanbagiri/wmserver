@@ -22,9 +22,9 @@ class AreaModel(Base):
     provide_type: Mapped[str] = mapped_column()
     card_number: Mapped[str] = mapped_column()
     username: Mapped[str] = mapped_column()
-
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
+    created_by_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
     stock_id: Mapped[int] = mapped_column(ForeignKey('stocks.id'))
     group_id: Mapped[int] = mapped_column(ForeignKey('groups.id'))
 

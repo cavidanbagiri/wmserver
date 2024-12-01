@@ -90,10 +90,11 @@ class FilterStockRepository(StockRepository):
                 if key == 'material_name':
                     cond += f" warehouse_materials_1.{key} ILIKE '%{value}%' and"
                 elif key == 'created_at':
-                    cond += f" stocks_1.{key}::date = '{value}' and"
+                    cond += f" stocks.{key}::date = '{value}' and"
                 else:
                     cond += f" {key}='{value}' and "
         cond = cond[:len(cond) - 4]
+        print(f'sending query is : {cond}')
         return cond
 
 
@@ -140,6 +141,7 @@ class ProvideRepositories(StockRepository):
                     username = datas.get('username'),
                     group_id = int(datas.get('group_id')),
                     stock_id = int(i.get('stock_id')),
+                    created_by_id = int(user_info.get('id'))
                 )
                 session.add(new_data)
             await session.commit()
@@ -172,3 +174,33 @@ class ProvideRepositories(StockRepository):
             }
             returned_data.append(find_dict)
         return returned_data
+
+class GetStockByIdRepository(StockRepository):
+
+    def __init__(self, db: AsyncSession):
+        super().__init__(db)
+
+    async def get_stock_by_id(self,  stock_id:int, user_info):
+        async with SessionLocal() as session:
+            data = await session.execute(select(StockModel).options(joinedload(StockModel.warehouse_materials))
+                                        .filter(StockModel.id == int(stock_id)))
+            temp = data.scalars().first()
+            return temp
+
+class UpdateRepository(StockRepository):
+
+    def __init__(self, db: AsyncSession):
+        super().__init__(db)
+
+    async def update(self, data):
+        async with SessionLocal() as session:
+            await session.execute(update(StockModel).where(StockModel.id == data.get('id'))
+                                         .values(serial_number=data.get('serial_number'), material_id=data.get('material_id')))
+            await session.commit()
+            data = await session.execute(select(StockModel).options(joinedload(StockModel.warehouse_materials))
+                                         .filter(StockModel.id == int(data.get('id'))))
+            temp = data.scalars().first()
+            return {
+                'msg':'Successfully Updated',
+                'data': temp
+            }

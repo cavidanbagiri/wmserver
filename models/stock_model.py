@@ -31,5 +31,5 @@ class StockModel(Base):
     areas: Mapped['AreaModel'] = relationship(back_populates='stocks')
 
     def __str__(self):
-        return f'{self.id} {self.quantity} {self.quantity}'
+        return f'id-> {self.id} | quantity-> {self.quantity} | leftover-> {self.leftover} '
 

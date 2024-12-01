@@ -12,7 +12,8 @@ from db.setup import get_db
 from dependecies.authorization import TokenVerifyMiddleware
 
 # Import Repository
-from repositories.stock_repository import FetchStockRepository, FilterStockRepository, GetDataByIDS, ProvideRepositories
+from repositories.stock_repository import FetchStockRepository, FilterStockRepository, GetDataByIDS, \
+    ProvideRepositories, GetStockByIdRepository, UpdateRepository
 from schemas.area_schemas import CreateAreaSchema
 
 router = APIRouter()
@@ -73,7 +74,7 @@ async def provide(datas: dict, db: AsyncSession = Depends(get_db), user_info = D
     if (user_info['is_admin'] or
             user_info.get('status_code') == '10000' or
             user_info.get('status_code') == '10001' or
-            user_info.get('status_code') == '10001'):
+            user_info.get('status_code') == '10002'):
 
         repository = ProvideRepositories(db)
         try:
@@ -82,5 +83,35 @@ async def provide(datas: dict, db: AsyncSession = Depends(get_db), user_info = D
         except HTTPException as e:
             return JSONResponse(status_code=e.status_code, content={'msg': str(e.detail)})
 
+    else:
+        return JSONResponse(status_code=403, content={'message': USER_AUTHORIZATION_ERROR})
+
+@router.get('/{stock_id}', status_code=200)
+async def update(stock_id:int, db:AsyncSession = Depends(get_db), user_info = Depends(TokenVerifyMiddleware.verify_access_token)):
+    if (user_info['is_admin'] or
+            user_info.get('status_code') == '10000' or
+            user_info.get('status_code') == '10001' or
+            user_info.get('status_code') == '10002'):
+        repository = GetStockByIdRepository(db)
+        try:
+            data = await repository.get_stock_by_id(stock_id, user_info)
+            return data
+        except HTTPException as e:
+            return JSONResponse(status_code=400, content={'msg': str(e.detail)})
+    else:
+        return JSONResponse(status_code=403, content={'message': USER_AUTHORIZATION_ERROR})
+
+@router.post('/update', status_code=201)
+async def update(data: dict, db:AsyncSession = Depends(get_db), user_info = Depends(TokenVerifyMiddleware.verify_access_token)):
+    if (user_info['is_admin'] or
+            user_info.get('status_code') == '10000' or
+            user_info.get('status_code') == '10001' or
+            user_info.get('status_code') == '10002'):
+        repository = UpdateRepository(db)
+        try:
+            data = await repository.update(data)
+            return data
+        except HTTPException as e:
+            return JSONResponse(status_code=400, content={'msg': str(e.detail)})
     else:
         return JSONResponse(status_code=403, content={'message': USER_AUTHORIZATION_ERROR})
