@@ -7,6 +7,8 @@ from sqlalchemy import ForeignKey
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 
 from db.setup import Base
+from models.area_model import AreaModel
+
 
 class StockModel(Base):
     __tablename__ = 'stocks'
@@ -25,6 +27,8 @@ class StockModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     warehouse_materials: Mapped['WarehouseModel'] = relationship(back_populates='stocks')
+
+    areas: Mapped['AreaModel'] = relationship(back_populates='stocks')
 
     def __str__(self):
         return f'{self.id} {self.quantity} {self.quantity}'

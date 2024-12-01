@@ -1,19 +1,23 @@
 
 import datetime
 
-from fastapi import APIRouter, Depends
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from constants.messages import USER_AUTHORIZATION_ERROR
 from db.setup import get_db
 from dependecies.authorization import TokenVerifyMiddleware
 
 # Import Repository
-from repositories.stock_repository import FetchStockRepository, FilterStockRepository
+from repositories.stock_repository import FetchStockRepository, FilterStockRepository, GetDataByIDS, ProvideRepositories
+from schemas.area_schemas import CreateAreaSchema
 
 router = APIRouter()
 
-
+# Checked
 @router.get('/fetch', status_code=200)
 async def fetch(db: AsyncSession = Depends(get_db), user_info = Depends(TokenVerifyMiddleware.verify_access_token)):
     repository = FetchStockRepository(db)
@@ -51,3 +55,32 @@ async def filter_query(
     }
     data = await filter_warehouse_repository.filter(queries, user_info)
     return data
+
+# Used for getting datas with id, especially used in provide data to area
+@router.post('/datas', status_code=201)
+async def get_data_by_ids(ids: list[str], db: AsyncSession = Depends(get_db), user_info = Depends(TokenVerifyMiddleware.verify_access_token)):
+    if user_info['is_admin'] or user_info.get('status_code') == '10000' or user_info.get('status_code') == '10001':
+        repositories = GetDataByIDS(db)
+        data = await repositories.get_data_by_ids(ids, user_info)
+        return data
+    else:
+        return JSONResponse(status_code=403, content={'message': USER_AUTHORIZATION_ERROR})
+
+
+
+@router.post('/provide', status_code=201)
+async def provide(datas: dict, db: AsyncSession = Depends(get_db), user_info = Depends(TokenVerifyMiddleware.verify_access_token)):
+    if (user_info['is_admin'] or
+            user_info.get('status_code') == '10000' or
+            user_info.get('status_code') == '10001' or
+            user_info.get('status_code') == '10001'):
+
+        repository = ProvideRepositories(db)
+        try:
+            data = await repository.provide(user_info, datas)
+            return data
+        except HTTPException as e:
+            return JSONResponse(status_code=e.status_code, content={'msg': str(e.detail)})
+
+    else:
+        return JSONResponse(status_code=403, content={'message': USER_AUTHORIZATION_ERROR})

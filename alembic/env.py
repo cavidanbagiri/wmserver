@@ -28,6 +28,7 @@ from models.warehouse_model import WarehouseModel
 from models.user_status_models import UserStatusModel
 from models.stock_model import StockModel
 from models.certpass_model import CertPassModels
+from models.area_model import AreaModel
 
 target_metadata = Base.metadata
 
