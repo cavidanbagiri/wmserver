@@ -13,8 +13,7 @@ from dependecies.authorization import TokenVerifyMiddleware
 
 # Import Repository
 from repositories.stock_repository import FetchStockRepository, FilterStockRepository, GetDataByIDS, \
-    ProvideRepositories, GetStockByIdRepository, UpdateRepository
-from schemas.area_schemas import CreateAreaSchema
+    ProvideRepositories, GetStockByIdRepository, UpdateRepository, SetUnusableRepository, SetServiceRepository
 
 router = APIRouter()
 
@@ -57,6 +56,7 @@ async def filter_query(
     data = await filter_warehouse_repository.filter(queries, user_info)
     return data
 
+# Checked
 # Used for getting datas with id, especially used in provide data to area
 @router.post('/datas', status_code=201)
 async def get_data_by_ids(ids: list[str], db: AsyncSession = Depends(get_db), user_info = Depends(TokenVerifyMiddleware.verify_access_token)):
@@ -68,7 +68,7 @@ async def get_data_by_ids(ids: list[str], db: AsyncSession = Depends(get_db), us
         return JSONResponse(status_code=403, content={'message': USER_AUTHORIZATION_ERROR})
 
 
-
+# Checked
 @router.post('/provide', status_code=201)
 async def provide(datas: dict, db: AsyncSession = Depends(get_db), user_info = Depends(TokenVerifyMiddleware.verify_access_token)):
     if (user_info['is_admin'] or
@@ -86,6 +86,7 @@ async def provide(datas: dict, db: AsyncSession = Depends(get_db), user_info = D
     else:
         return JSONResponse(status_code=403, content={'message': USER_AUTHORIZATION_ERROR})
 
+# Checked
 @router.get('/{stock_id}', status_code=200)
 async def update(stock_id:int, db:AsyncSession = Depends(get_db), user_info = Depends(TokenVerifyMiddleware.verify_access_token)):
     if (user_info['is_admin'] or
@@ -101,6 +102,7 @@ async def update(stock_id:int, db:AsyncSession = Depends(get_db), user_info = De
     else:
         return JSONResponse(status_code=403, content={'message': USER_AUTHORIZATION_ERROR})
 
+# Checked
 @router.post('/update', status_code=201)
 async def update(data: dict, db:AsyncSession = Depends(get_db), user_info = Depends(TokenVerifyMiddleware.verify_access_token)):
     if (user_info['is_admin'] or
@@ -110,6 +112,38 @@ async def update(data: dict, db:AsyncSession = Depends(get_db), user_info = Depe
         repository = UpdateRepository(db)
         try:
             data = await repository.update(data)
+            return data
+        except HTTPException as e:
+            return JSONResponse(status_code=400, content={'msg': str(e.detail)})
+    else:
+        return JSONResponse(status_code=403, content={'message': USER_AUTHORIZATION_ERROR})
+
+
+@router.post('/setunusablematerial', status_code=201)
+async def set_unusable(data: dict, db: AsyncSession = Depends(get_db), user_info = Depends(TokenVerifyMiddleware.verify_access_token)):
+    if (user_info['is_admin'] or
+            user_info.get('status_code') == '10000' or
+            user_info.get('status_code') == '10001' or
+            user_info.get('status_code') == '10002'):
+        repository = SetUnusableRepository(db)
+        try:
+            data = await repository.set_unusable(data, user_info)
+            return data
+        except HTTPException as e:
+            return JSONResponse(status_code=400, content={'msg': str(e.detail)})
+    else:
+        return JSONResponse(status_code=403, content={'message': USER_AUTHORIZATION_ERROR})
+
+
+@router.post('/setservicematerial', status_code=201)
+async def set_service(data: dict, db: AsyncSession = Depends(get_db), user_info = Depends(TokenVerifyMiddleware.verify_access_token)):
+    if (user_info['is_admin'] or
+            user_info.get('status_code') == '10000' or
+            user_info.get('status_code') == '10001' or
+            user_info.get('status_code') == '10002'):
+        repository = SetServiceRepository(db)
+        try:
+            data = await repository.set_service(data, user_info)
             return data
         except HTTPException as e:
             return JSONResponse(status_code=400, content={'msg': str(e.detail)})

@@ -8,6 +8,8 @@ from sqlalchemy.orm import mapped_column, Mapped, relationship
 
 from db.setup import Base
 from models.area_model import AreaModel
+from models.area_model import ServiceMaterialModel
+from models.area_model import UnusableMaterialModel
 
 
 class StockModel(Base):
@@ -29,6 +31,8 @@ class StockModel(Base):
     warehouse_materials: Mapped['WarehouseModel'] = relationship(back_populates='stocks')
 
     areas: Mapped['AreaModel'] = relationship(back_populates='stocks')
+    services: Mapped['ServiceMaterialModel'] = relationship(back_populates='stocks')
+    unusables: Mapped['UnusableMaterialModel'] = relationship(back_populates='stocks')
 
     def __str__(self):
         return f'id-> {self.id} | quantity-> {self.quantity} | leftover-> {self.leftover} '

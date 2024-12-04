@@ -5,7 +5,7 @@ from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from db.setup import SessionLocal
-from models.area_model import AreaModel
+from models.area_model import AreaModel, UnusableMaterialModel, ServiceMaterialModel
 from models.company_model import CompanyModel
 from models.material_code_model import MaterialCodeModel
 from models.material_type_model import MaterialTypeModel
@@ -94,7 +94,6 @@ class FilterStockRepository(StockRepository):
                 else:
                     cond += f" {key}='{value}' and "
         cond = cond[:len(cond) - 4]
-        print(f'sending query is : {cond}')
         return cond
 
 
@@ -204,3 +203,80 @@ class UpdateRepository(StockRepository):
                 'msg':'Successfully Updated',
                 'data': temp
             }
+
+
+class SetUnusableRepository(StockRepository):
+
+    def __init__(self, db: AsyncSession):
+        super().__init__(db)
+
+    async def set_unusable(self, data: dict, user_info):
+        async with SessionLocal() as session:
+
+            # Find Data and check quantity
+            stock_data = await session.execute(select(StockModel).options(joinedload(StockModel.warehouse_materials))
+                                        .filter(StockModel.id == int(data.get('stock_id'))))
+            temp = stock_data.scalars().first()
+            if float(data.get("quantity")) <= temp.leftover:
+
+                # 1 - Create new unsuable row
+                created_data = UnusableMaterialModel(
+                    quantity = float(data.get('quantity')),
+                    comment = data.get('comment'),
+                    created_by_id = user_info.get('id'),
+                    stock_id = data.get('stock_id'),
+                )
+                session.add(created_data)
+
+                # 2 - Update Stock Data
+                await session.execute(update(StockModel).filter(StockModel.id == int(data.get('stock_id'))).values(leftover = StockModel.leftover - float(data.get('quantity'))))
+                await session.commit()
+
+                # 3 - Return data back
+                data = await session.execute(select(StockModel).options(joinedload(StockModel.warehouse_materials))
+                                             .filter(StockModel.id == int(data.get('stock_id'))))
+                temp = data.scalars().first()
+                return {
+                    'msg': 'Successfully Added',
+                    'data': temp
+                }
+            else:
+                raise HTTPException(status_code=400, detail="Entering amount can't be greater than leftover")
+
+
+class SetServiceRepository(StockRepository):
+    def __init__(self, db: AsyncSession):
+        super().__init__(db)
+
+    async def set_service(self, data: dict, user_info):
+        async with SessionLocal() as session:
+
+            # Find Data and check quantity
+            stock_data = await session.execute(select(StockModel).options(joinedload(StockModel.warehouse_materials))
+                                        .filter(StockModel.id == int(data.get('stock_id'))))
+            temp = stock_data.scalars().first()
+            if float(data.get("quantity")) <= temp.leftover:
+
+                # 1 - Create new unsuable row
+                created_data = ServiceMaterialModel(
+                    quantity = float(data.get('quantity')),
+                    comment = data.get('comment'),
+                    created_by_id = user_info.get('id'),
+                    stock_id = data.get('stock_id'),
+                )
+                session.add(created_data)
+
+                # 2 - Update Stock Data
+                await session.execute(update(StockModel).filter(StockModel.id == int(data.get('stock_id'))).values(leftover = StockModel.leftover - float(data.get('quantity'))))
+                await session.commit()
+
+                # 3 - Return data back
+                data = await session.execute(select(StockModel).options(joinedload(StockModel.warehouse_materials))
+                                             .filter(StockModel.id == int(data.get('stock_id'))))
+                temp = data.scalars().first()
+                return {
+                    'msg': 'Successfully Added',
+                    'data': temp
+                }
+            else:
+                raise HTTPException(status_code=400, detail="Entering amount can't be greater than leftover")
