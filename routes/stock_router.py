@@ -13,7 +13,8 @@ from dependecies.authorization import TokenVerifyMiddleware
 
 # Import Repository
 from repositories.stock_repository import FetchStockRepository, FilterStockRepository, GetDataByIDS, \
-    ProvideRepositories, GetStockByIdRepository, UpdateRepository, SetUnusableRepository, SetServiceRepository
+    ProvideRepositories, GetStockByIdRepository, UpdateRepository, SetUnusableRepository, SetServiceRepository, \
+    ReturnWarehouseRepository
 
 router = APIRouter()
 
@@ -95,7 +96,7 @@ async def update(stock_id:int, db:AsyncSession = Depends(get_db), user_info = De
             user_info.get('status_code') == '10002'):
         repository = GetStockByIdRepository(db)
         try:
-            data = await repository.get_stock_by_id(stock_id, user_info)
+            data = await repository.get_stock_by_id(stock_id)
             return data
         except HTTPException as e:
             return JSONResponse(status_code=400, content={'msg': str(e.detail)})
@@ -144,6 +145,22 @@ async def set_service(data: dict, db: AsyncSession = Depends(get_db), user_info 
         repository = SetServiceRepository(db)
         try:
             data = await repository.set_service(data, user_info)
+            return data
+        except HTTPException as e:
+            return JSONResponse(status_code=400, content={'msg': str(e.detail)})
+    else:
+        return JSONResponse(status_code=403, content={'message': USER_AUTHORIZATION_ERROR})
+
+
+@router.post('/return', status_code=201)
+async def return_warehouse(data: dict, db: AsyncSession = Depends(get_db), user_info = Depends(TokenVerifyMiddleware.verify_access_token)):
+    if (user_info['is_admin'] or
+            user_info.get('status_code') == '10000' or
+            user_info.get('status_code') == '10001' or
+            user_info.get('status_code') == '10002'):
+        repository = ReturnWarehouseRepository(db)
+        try:
+            data = await repository.return_warehouse(data, user_info)
             return data
         except HTTPException as e:
             return JSONResponse(status_code=400, content={'msg': str(e.detail)})

@@ -174,17 +174,19 @@ class ProvideRepositories(StockRepository):
             returned_data.append(find_dict)
         return returned_data
 
+
 class GetStockByIdRepository(StockRepository):
 
     def __init__(self, db: AsyncSession):
         super().__init__(db)
 
-    async def get_stock_by_id(self,  stock_id:int, user_info):
+    async def get_stock_by_id(self,  stock_id:int):
         async with SessionLocal() as session:
             data = await session.execute(select(StockModel).options(joinedload(StockModel.warehouse_materials))
                                         .filter(StockModel.id == int(stock_id)))
             temp = data.scalars().first()
             return temp
+
 
 class UpdateRepository(StockRepository):
 
@@ -209,17 +211,15 @@ class SetUnusableRepository(StockRepository):
 
     def __init__(self, db: AsyncSession):
         super().__init__(db)
+        self.repository = GetStockByIdRepository(db)
 
     async def set_unusable(self, data: dict, user_info):
         async with SessionLocal() as session:
 
-            # Find Data and check quantity
-            stock_data = await session.execute(select(StockModel).options(joinedload(StockModel.warehouse_materials))
-                                        .filter(StockModel.id == int(data.get('stock_id'))))
-            temp = stock_data.scalars().first()
+            temp = await self.repository.get_stock_by_id(int(data.get('stock_id')))
             if float(data.get("quantity")) <= temp.leftover:
 
-                # 1 - Create new unsuable row
+                # 1 - Create new unusable row
                 created_data = UnusableMaterialModel(
                     quantity = float(data.get('quantity')),
                     comment = data.get('comment'),
@@ -232,13 +232,9 @@ class SetUnusableRepository(StockRepository):
                 await session.execute(update(StockModel).filter(StockModel.id == int(data.get('stock_id'))).values(leftover = StockModel.leftover - float(data.get('quantity'))))
                 await session.commit()
 
-                # 3 - Return data back
-                data = await session.execute(select(StockModel).options(joinedload(StockModel.warehouse_materials))
-                                             .filter(StockModel.id == int(data.get('stock_id'))))
-                temp = data.scalars().first()
                 return {
                     'msg': 'Successfully Added',
-                    'data': temp
+                    'data': await self.repository.get_stock_by_id(int(data.get('stock_id')))
                 }
             else:
                 raise HTTPException(status_code=400, detail="Entering amount can't be greater than leftover")
@@ -247,14 +243,12 @@ class SetUnusableRepository(StockRepository):
 class SetServiceRepository(StockRepository):
     def __init__(self, db: AsyncSession):
         super().__init__(db)
+        self.repository = GetStockByIdRepository(db)
 
     async def set_service(self, data: dict, user_info):
         async with SessionLocal() as session:
 
-            # Find Data and check quantity
-            stock_data = await session.execute(select(StockModel).options(joinedload(StockModel.warehouse_materials))
-                                        .filter(StockModel.id == int(data.get('stock_id'))))
-            temp = stock_data.scalars().first()
+            temp = await self.repository.get_stock_by_id(int(data.get('stock_id')))
             if float(data.get("quantity")) <= temp.leftover:
 
                 # 1 - Create new unsuable row
@@ -271,12 +265,56 @@ class SetServiceRepository(StockRepository):
                 await session.commit()
 
                 # 3 - Return data back
-                data = await session.execute(select(StockModel).options(joinedload(StockModel.warehouse_materials))
-                                             .filter(StockModel.id == int(data.get('stock_id'))))
-                temp = data.scalars().first()
+
                 return {
                     'msg': 'Successfully Added',
-                    'data': temp
+                    'data': await self.repository.get_stock_by_id(int(data.get('stock_id')))
                 }
             else:
                 raise HTTPException(status_code=400, detail="Entering amount can't be greater than leftover")
+
+
+class ReturnWarehouseRepository(StockRepository):
+
+    def __init__(self, db: AsyncSession):
+        super().__init__(db)
+        self.repository = GetStockByIdRepository(db)
+
+    async def return_warehouse(self, data, user_info):
+        async with SessionLocal() as session:
+
+            # Find Data and check quantity
+            temp = await self.repository.get_stock_by_id(int(data.get('stock_id')))
+            if float(data.get('return_amount')) > temp.leftover:
+                raise HTTPException(status_code=400, detail="Entering amount can't be greater than leftover")
+            else:
+
+                # 1 - Withdraw quantity from stock model
+                await session.execute(update(StockModel).filter(StockModel.id == data.get('stock_id'))
+                                      .values(leftover = StockModel.leftover - float(data.get('return_amount')),
+                                              quantity = StockModel.quantity - float(data.get('return_amount'))))
+
+                # 2 - Add withdraw quantity to warehouse
+                await session.execute(update(WarehouseModel).filter(WarehouseModel.id == data.get('warehouse_id')).
+                                      values(leftover = WarehouseModel.leftover + float(data.get('return_amount'))))
+
+                await session.commit()
+
+                # 3 - Return Back refreshing data
+
+                return {
+                    'msg': 'Successfully Returned',
+                    'data': await self.repository.get_stock_by_id(int(data.get('stock_id')))
+                }
+
+
+
+
+
+
+
+
+
+
+
+
