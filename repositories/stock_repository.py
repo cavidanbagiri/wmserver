@@ -1,17 +1,19 @@
 
 
 from fastapi import HTTPException
+
 from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
+
 from db.setup import SessionLocal
+
 from models.area_model import AreaModel, UnusableMaterialModel, ServiceMaterialModel
 from models.company_model import CompanyModel
 from models.material_code_model import MaterialCodeModel
 from models.material_type_model import MaterialTypeModel
 from models.ordered_model import OrderedModel
 from models.project_model import ProjectModel
-
 from models.stock_model import StockModel
 from models.warehouse_model import WarehouseModel
 
@@ -47,6 +49,7 @@ class FetchStockRepository(StockRepository):
 
             temp = data.scalars().fetchall()
             return temp
+
 
 class FilterStockRepository(StockRepository):
 
@@ -140,7 +143,8 @@ class ProvideRepositories(StockRepository):
                     username = datas.get('username'),
                     group_id = int(datas.get('group_id')),
                     stock_id = int(i.get('stock_id')),
-                    created_by_id = int(user_info.get('id'))
+                    created_by_id = int(user_info.get('id')),
+                    project_id = int(user_info.get('project'))
                 )
                 session.add(new_data)
             await session.commit()

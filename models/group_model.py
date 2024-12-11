@@ -12,3 +12,5 @@ class GroupModel(Base):
     ordereds: Mapped[list['OrderedModel']] = relationship(back_populates='group')
 
     users: Mapped[list["UserModel"]] = relationship(back_populates="group")
+
+    areas: Mapped['AreaModel'] = relationship(back_populates='group')

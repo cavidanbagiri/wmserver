@@ -2,13 +2,11 @@
 from datetime import datetime
 from sqlalchemy import DateTime
 
-
 from sqlalchemy import ForeignKey, func
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 
 from db.setup import Base
 from models.group_model import GroupModel
-
 
 class AreaModel(Base):
 
@@ -27,8 +25,10 @@ class AreaModel(Base):
     created_by_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
     stock_id: Mapped[int] = mapped_column(ForeignKey('stocks.id'))
     group_id: Mapped[int] = mapped_column(ForeignKey('groups.id'))
+    project_id: Mapped[int] = mapped_column(ForeignKey('projects.id'), default=1)
 
-    stocks: Mapped['StockModel'] = relationship(back_populates='areas')
+    stock: Mapped['StockModel'] = relationship(back_populates='areas')
+    group: Mapped['GroupModel'] = relationship(back_populates='areas')
 
 class ServiceMaterialModel(Base):
     __tablename__ = 'service_materials'
@@ -42,7 +42,7 @@ class ServiceMaterialModel(Base):
     created_by_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
     stock_id: Mapped[int] = mapped_column(ForeignKey('stocks.id'))
 
-    stocks: Mapped['StockModel'] = relationship(back_populates='services')
+    # stock: Mapped['StockModel'] = relationship(back_populates='services')
 
 class UnusableMaterialModel(Base):
     __tablename__ = 'unusable_materials'
@@ -56,4 +56,4 @@ class UnusableMaterialModel(Base):
     created_by_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
     stock_id: Mapped[int] = mapped_column(ForeignKey('stocks.id'))
 
-    stocks: Mapped['StockModel'] = relationship(back_populates='unusables')
+    # stock: Mapped['StockModel'] = relationship(back_populates='unusables')

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Set
 
 from sqlalchemy import DateTime
 from sqlalchemy import func
@@ -7,9 +8,10 @@ from sqlalchemy import ForeignKey
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 
 from db.setup import Base
+from models.warehouse_model import WarehouseModel
 from models.area_model import AreaModel
-from models.area_model import ServiceMaterialModel
-from models.area_model import UnusableMaterialModel
+# from models.area_model import ServiceMaterialModel
+# from models.area_model import UnusableMaterialModel
 
 
 class StockModel(Base):
@@ -30,9 +32,9 @@ class StockModel(Base):
 
     warehouse_materials: Mapped['WarehouseModel'] = relationship(back_populates='stocks')
 
-    areas: Mapped['AreaModel'] = relationship(back_populates='stocks')
-    services: Mapped['ServiceMaterialModel'] = relationship(back_populates='stocks')
-    unusables: Mapped['UnusableMaterialModel'] = relationship(back_populates='stocks')
+    areas: Mapped[Set['AreaModel']] = relationship(back_populates='stock')
+    # services: Mapped[list['ServiceMaterialModel']] = relationship(back_populates='stock')
+    # unusables: Mapped[list['UnusableMaterialModel']] = relationship(back_populates='stock')
 
     def __str__(self):
         return f'id-> {self.id} | quantity-> {self.quantity} | leftover-> {self.leftover} '

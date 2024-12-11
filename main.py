@@ -1,6 +1,7 @@
+from sys import prefix
 
 from fastapi import FastAPI
-from routes import common_router, user_router, warehouse_router, stock_router
+from routes import common_router, user_router, warehouse_router, stock_router, area_router
 from fastapi.middleware.cors import CORSMiddleware
 
 # Import .env
@@ -25,5 +26,6 @@ app.include_router(common_router.router, prefix='/api/common')
 app.include_router(user_router.router,  prefix='/api/users')
 app.include_router(warehouse_router.router, prefix='/api/warehouse')
 app.include_router(stock_router.router, prefix='/api/stock')
+app.include_router(area_router.router, prefix='/api/areas')
 
 
