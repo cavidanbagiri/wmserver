@@ -229,6 +229,7 @@ class SetUnusableRepository(StockRepository):
                     comment = data.get('comment'),
                     created_by_id = user_info.get('id'),
                     stock_id = data.get('stock_id'),
+                    project_id = user_info.get('project')
                 )
                 session.add(created_data)
 
@@ -261,6 +262,7 @@ class SetServiceRepository(StockRepository):
                     comment = data.get('comment'),
                     created_by_id = user_info.get('id'),
                     stock_id = data.get('stock_id'),
+                    project_id=user_info.get('project')
                 )
                 session.add(created_data)
 

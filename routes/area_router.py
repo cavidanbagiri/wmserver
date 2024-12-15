@@ -13,7 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dependecies.authorization import TokenVerifyMiddleware
 from repositories.area_repository import FetchAreaRepository, FilterAreaRepository, UpdateAreaRepository, \
-    GetDataByIdRepository, ReturnAmountRepository
+    GetDataByIdRepository, ReturnAmountRepository, FetchUnusableMaterialsRepository, FetchServiceMaterialsRepository, \
+    UnusableToStockRepository, ServiceToStockRepository
 
 router = APIRouter()
 
@@ -31,6 +32,42 @@ async def fetch(db: AsyncSession = Depends(get_db), user_info = Depends(TokenVer
             return JSONResponse(status_code=e.status_code, content={'msg': str(e.detail)})
     else:
         return JSONResponse(status_code=403, content={'message': USER_AUTHORIZATION_ERROR})
+
+
+@router.get('/fetchservicematerials', status_code=200)
+async def fetch_service_materials(db: AsyncSession = Depends(get_db), user_info = Depends(TokenVerifyMiddleware.verify_access_token)):
+    if (user_info['is_admin'] or
+            user_info.get('status_code') == '10000' or
+            user_info.get('status_code') == '10001' or
+            user_info.get('status_code') == '10002'):
+
+        repository = FetchServiceMaterialsRepository(db)
+        try:
+            data = await repository.fetch_service_materials(user_info)
+            return data
+        except HTTPException as e:
+            return JSONResponse(status_code=e.status_code, content={'msg': str(e.detail)})
+    else:
+        return JSONResponse(status_code=403, content={'message': USER_AUTHORIZATION_ERROR})
+
+
+
+@router.get('/fetchunusablematerials', status_code=200)
+async def fetch_unusable_materials(db: AsyncSession = Depends(get_db), user_info = Depends(TokenVerifyMiddleware.verify_access_token)):
+    if (user_info['is_admin'] or
+            user_info.get('status_code') == '10000' or
+            user_info.get('status_code') == '10001' or
+            user_info.get('status_code') == '10002'):
+
+        repository = FetchUnusableMaterialsRepository(db)
+        try:
+            data = await repository.fetch_unusable_materials(user_info)
+            return data
+        except HTTPException as e:
+            return JSONResponse(status_code=e.status_code, content={'msg': str(e.detail)})
+    else:
+        return JSONResponse(status_code=403, content={'message': USER_AUTHORIZATION_ERROR})
+
 
 @router.get('/filter', status_code=200)
 async def filter(
@@ -94,7 +131,6 @@ async def update(update_data: dict, db: AsyncSession = Depends(get_db), user_inf
         return JSONResponse(status_code=403, content={'message': USER_AUTHORIZATION_ERROR})
 
 
-
 @router.post('/return', status_code=201)
 async def update(update_data: dict, db: AsyncSession = Depends(get_db), user_info = Depends(TokenVerifyMiddleware.verify_access_token)):
     if (user_info['is_admin'] or
@@ -110,3 +146,23 @@ async def update(update_data: dict, db: AsyncSession = Depends(get_db), user_inf
             return JSONResponse(status_code=e.status_code, content={'msg': str(e.detail)})
     else:
         return JSONResponse(status_code=403, content={'message': USER_AUTHORIZATION_ERROR})
+
+
+@router.post('/unusabletostock', status_code=201)
+async def unusable_to_stock(data: dict, db: AsyncSession = Depends(get_db), user_info = Depends(TokenVerifyMiddleware.verify_access_token)):
+    repository = UnusableToStockRepository(db)
+    try:
+        data = await repository.unusable_to_stock(data, user_info)
+        return data
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code, content={'msg': str(e.detail)})
+
+
+@router.post('/servicetostock', status_code=201)
+async def unusable_to_stock(data: dict, db: AsyncSession = Depends(get_db), user_info = Depends(TokenVerifyMiddleware.verify_access_token)):
+    repository = ServiceToStockRepository(db)
+    try:
+        data = await repository.service_to_stock(data, user_info)
+        return data
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code, content={'msg': str(e.detail)})

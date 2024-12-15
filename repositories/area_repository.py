@@ -166,3 +166,144 @@ class ReturnAmountRepository(AreaRepository):
                     'msg': 'Successfully Updated',
                     'data': temp
                 }
+
+
+
+class FetchUnusableMaterialsRepository(AreaRepository):
+
+    def __init__(self, db: AsyncSession):
+        super().__init__(db)
+
+    async def fetch_unusable_materials(self,user_info):
+        async with SessionLocal() as session:
+
+            query = ''
+            if user_info.get('is_admin') == True or user_info.get('status_code') == '1000':
+                pass
+            else:
+                query = f'unusable_materials.project_id = {user_info.get('project')} and unusable_materials.quantity >0'
+
+            data = await session.execute(select(UnusableMaterialModel, StockModel)
+                                         .options(joinedload(UnusableMaterialModel.stock))
+                                         .options(joinedload(StockModel.warehouse_materials))
+                                         .options(joinedload(StockModel.warehouse_materials).options(joinedload(WarehouseModel.material_code).load_only(MaterialCodeModel.material_code, MaterialCodeModel.material_description)))
+                                         .options(joinedload(StockModel.warehouse_materials).options(joinedload(WarehouseModel.material_type).load_only(MaterialTypeModel.name)))
+                                         .options(joinedload(StockModel.warehouse_materials).options(joinedload(WarehouseModel.project).load_only(ProjectModel.project_name))
+                                        ).filter(text(query)))
+
+            temp = data.unique().scalars().fetchall()
+            return temp
+
+
+class FetchServiceMaterialsRepository(AreaRepository):
+
+    def __init__(self, db: AsyncSession):
+        super().__init__(db)
+
+    async def fetch_service_materials(self,user_info):
+        async with SessionLocal() as session:
+
+            query = ''
+            if user_info.get('is_admin') == True or user_info.get('status_code') == '1000':
+                pass
+            else:
+                query = f'service_materials.project_id = {user_info.get('project')}  and service_materials.quantity > 0'
+
+            data = await session.execute(select(ServiceMaterialModel, StockModel)
+                                         .options(joinedload(ServiceMaterialModel.stock))
+                                         .options(joinedload(StockModel.warehouse_materials))
+                                         .options(joinedload(StockModel.warehouse_materials).options(joinedload(WarehouseModel.material_code).load_only(MaterialCodeModel.material_code, MaterialCodeModel.material_description)))
+                                         .options(joinedload(StockModel.warehouse_materials).options(joinedload(WarehouseModel.material_type).load_only(MaterialTypeModel.name)))
+                                         .options(joinedload(StockModel.warehouse_materials).options(joinedload(WarehouseModel.project).load_only(ProjectModel.project_name))
+                                        ).filter(text(query)))
+
+            temp = data.unique().scalars().fetchall()
+            return temp
+
+
+class UnusableToStockRepository(AreaRepository):
+
+    def __init__(self, db:AsyncSession):
+        super().__init__(db)
+
+    async def unusable_to_stock(self, data, user_info):
+        async with SessionLocal() as session:
+
+            # 1 Find The data from servie
+            service_data = await session.execute(
+                select(UnusableMaterialModel).where(UnusableMaterialModel.id == data.get('id')))
+            temp = service_data.scalars().first()
+
+            # 2 Compare the quantity
+            if float(data.get('quantity')) <= 0:
+                raise HTTPException(status_code=400, detail="Entering quantity can't be 0 or negative number")
+            elif float(data.get('quantity')) > temp.quantity:
+                raise HTTPException(status_code=400, detail="Entering quantity can't be greater than current quantity")
+            else:
+                # 3 - Withdraw the quantity from service model
+                await session.execute(update(UnusableMaterialModel).where(UnusableMaterialModel.id == data.get('id'))
+                                      .values(quantity=UnusableMaterialModel.quantity - float(data.get('quantity'))))
+
+                # 4 - Add quantity to stock model
+                await session.execute(update(StockModel).where(StockModel.id == temp.stock_id)
+                                      .values(leftover=StockModel.leftover + float(data.get('quantity'))))
+
+                await session.commit()
+
+                data = await session.execute(select(UnusableMaterialModel, StockModel)
+                                             .options(joinedload(UnusableMaterialModel.stock))
+                                             .options(joinedload(StockModel.warehouse_materials))
+                                             .options(joinedload(StockModel.warehouse_materials).options(joinedload(WarehouseModel.material_code).load_only(MaterialCodeModel.material_code,MaterialCodeModel.material_description)))
+                                             .options(joinedload(StockModel.warehouse_materials).options(joinedload(WarehouseModel.material_type).load_only(MaterialTypeModel.name)))
+                                             .options(joinedload(StockModel.warehouse_materials).options(joinedload(WarehouseModel.project).load_only(ProjectModel.project_name)))
+                                             .filter(UnusableMaterialModel.id == data.get('id')))
+
+                temp = data.unique().scalars().first()
+                return {
+                    'msg': 'Successfully Updated',
+                    'data': temp
+                }
+
+
+class ServiceToStockRepository(AreaRepository):
+
+    def __init__(self, db: AsyncSession):
+        super().__init__(db)
+
+    async def service_to_stock(self, data, user_info):
+
+        async with SessionLocal() as session:
+
+            # 1 Find The data from servie
+            service_data = await session.execute(select(ServiceMaterialModel).where(ServiceMaterialModel.id == data.get('id')))
+            temp = service_data.scalars().first()
+
+            # 2 Compare the quantity
+            if float(data.get('quantity')) <=0:
+                raise HTTPException(status_code=400, detail="Entering quantity can't be 0 or negative number")
+            elif float(data.get('quantity')) > temp.quantity:
+                raise HTTPException(status_code=400, detail="Entering quantity can't be greater than current quantity")
+            else:
+                # 3 - Withdraw the quantity from service model
+                await session.execute(update(ServiceMaterialModel).where(ServiceMaterialModel.id == data.get('id'))
+                                      .values(quantity = ServiceMaterialModel.quantity - float(data.get('quantity'))))
+
+                # 4 - Add quantity to stock model
+                await session.execute(update(StockModel).where(StockModel.id == temp.stock_id)
+                                      .values(leftover = StockModel.leftover + float(data.get('quantity'))))
+
+                await session.commit()
+
+                data = await session.execute(select(ServiceMaterialModel, StockModel)
+                                             .options(joinedload(ServiceMaterialModel.stock))
+                                             .options(joinedload(StockModel.warehouse_materials))
+                                             .options(joinedload(StockModel.warehouse_materials).options(joinedload(WarehouseModel.material_code).load_only(MaterialCodeModel.material_code,MaterialCodeModel.material_description)))
+                                             .options(joinedload(StockModel.warehouse_materials).options(joinedload(WarehouseModel.material_type).load_only(MaterialTypeModel.name)))
+                                             .options(joinedload(StockModel.warehouse_materials).options(joinedload(WarehouseModel.project).load_only(ProjectModel.project_name)))
+                                             .filter(ServiceMaterialModel.id == data.get('id')))
+
+                temp = data.unique().scalars().first()
+                return {
+                    'msg': 'Successfully Updated',
+                    'data': temp
+                }
